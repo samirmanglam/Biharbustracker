@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BusTracker Bihar — Live Bus Tracking</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:       #050d1a;
+      --surface:  #0a1628;
+      --card:     #0d1f3c;
+      --border:   #1a3050;
+      --accent:   #00b4d8;
+      --accent2:  #0077b6;
+      --green:    #4caf50;
+      --red:      #ef5350;
+      --text:     #e0eaf5;
+      --muted:    #4a6080;
+      --mono:     'Share Tech Mono', monospace;
+      --head:     'Rajdhani', sans-serif;
+      --body:     'Noto Sans Devanagari', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--body);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Grid background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,180,216,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,180,216,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Glow orbs ── */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb1 { width: 500px; height: 500px; background: rgba(0,119,182,.18); top: -150px; left: -150px; }
+    .orb2 { width: 400px; height: 400px; background: rgba(0,180,216,.1);  bottom: -100px; right: -100px; }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 32px;
+      background: rgba(5,13,26,.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: var(--head); font-size: 22px; font-weight: 700;
+      color: var(--accent); letter-spacing: 2px;
+      text-decoration: none;
+    }
+    .nav-logo span { color: var(--text); }
+    .nav-badge {
+      font-family: var(--mono); font-size: 10px;
+      background: rgba(0,180,216,.12); border: 1px solid var(--accent);
+      color: var(--accent); padding: 3px 8px; border-radius: 4px;
+      letter-spacing: 1px;
+    }
+    .nav-links { display: flex; gap: 24px; }
+    .nav-links a {
+      color: var(--muted); text-decoration: none; font-size: 14px;
+      font-family: var(--head); font-weight: 600; letter-spacing: 1px;
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--accent); }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative; z-index: 1;
+      text-align: center;
+      padding: 90px 20px 60px;
+    }
+    .hero-chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,180,216,.08); border: 1px solid rgba(0,180,216,.3);
+      color: var(--accent); padding: 6px 18px; border-radius: 99px;
+      font-family: var(--mono); font-size: 12px; letter-spacing: 2px;
+      margin-bottom: 28px;
+      animation: fadeDown .6s ease both;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      animation: pulse 1.4s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(76,175,80,.6); }
+      50%      { box-shadow: 0 0 0 6px rgba(76,175,80,0); }
+    }
+    .hero h1 {
+      font-family: var(--head); font-size: clamp(38px, 7vw, 80px);
+      font-weight: 700; line-height: 1.05; letter-spacing: 3px;
+      color: var(--text);
+      animation: fadeDown .7s .1s ease both;
+    }
+    .hero h1 em {
+      font-style: normal; color: var(--accent);
+      text-shadow: 0 0 40px rgba(0,180,216,.5);
+    }
+    .hero-sub {
+      margin: 20px auto 0; max-width: 560px;
+      color: var(--muted); font-size: 16px; line-height: 1.7;
+      animation: fadeDown .7s .2s ease both;
+    }
+
+    /* animated bus on road */
+    .road {
+      position: relative; margin: 50px auto;
+      max-width: 700px; height: 56px;
+      animation: fadeDown .7s .3s ease both;
+    }
+    .road-line {
+      position: absolute; top: 50%; left: 0; right: 0;
+      height: 2px; background: var(--border);
+      transform: translateY(-50%);
+    }
+    .road-dash {
+      position: absolute; top: 50%; left: 0; right: 0;
+      height: 2px; transform: translateY(-50%);
+      background: repeating-linear-gradient(
+        90deg, var(--accent) 0, var(--accent) 20px, transparent 20px, transparent 40px
+      );
+      opacity: .4;
+    }
+    .road-bus {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      font-size: 36px;
+      animation: drive 4s linear infinite;
+    }
+    @keyframes drive { from { left: -50px; } to { left: calc(100% + 10px); } }
+
+    /* ── STATS ── */
+    .stats {
+      position: relative; z-index: 1;
+      display: flex; justify-content: center; gap: 0;
+      max-width: 600px; margin: 0 auto 70px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+      animation: fadeUp .7s .4s ease both;
+    }
+    .stat {
+      flex: 1; padding: 22px 10px; text-align: center;
+      border-right: 1px solid var(--border);
+    }
+    .stat:last-child { border-right: none; }
+    .stat-num {
+      font-family: var(--head); font-size: 32px; font-weight: 700;
+      color: var(--accent);
+    }
+    .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; letter-spacing: 1px; }
+
+    /* ── SECTION TITLE ── */
+    .section-title {
+      text-align: center; margin-bottom: 40px;
+      position: relative; z-index: 1;
+    }
+    .section-title h2 {
+      font-family: var(--head); font-size: 32px; font-weight: 700;
+      letter-spacing: 2px; color: var(--text);
+    }
+    .section-title p { color: var(--muted); margin-top: 8px; font-size: 15px; }
+    .section-title .line {
+      width: 60px; height: 3px;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      margin: 12px auto 0; border-radius: 2px;
+    }
+
+    /* ── DOWNLOAD CARDS ── */
+    .downloads {
+      position: relative; z-index: 1;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px; max-width: 860px; margin: 0 auto 90px; padding: 0 20px;
+    }
+
+    .dl-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      position: relative;
+      transition: transform .3s, box-shadow .3s;
+    }
+    .dl-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 24px 60px rgba(0,0,0,.5);
+    }
+    .dl-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(0,180,216,.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .card-header {
+      padding: 28px 28px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; gap: 18px;
+    }
+    .card-icon {
+      width: 60px; height: 60px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; flex-shrink: 0;
+    }
+    .card-icon.driver  { background: rgba(0,119,182,.2); border: 1px solid rgba(0,119,182,.4); }
+    .card-icon.passenger { background: rgba(0,180,216,.15); border: 1px solid rgba(0,180,216,.4); }
+
+    .card-title { font-family: var(--head); font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+    .card-subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .card-tag {
+      display: inline-block; margin-top: 8px;
+      font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+      padding: 3px 10px; border-radius: 4px;
+    }
+    .tag-driver    { background: rgba(0,119,182,.15); color: #4fc3f7; border: 1px solid rgba(0,119,182,.4); }
+    .tag-passenger { background: rgba(76,175,80,.12); color: #81c784;  border: 1px solid rgba(76,175,80,.3); }
+
+    .card-body { padding: 22px 28px; }
+    .feature-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .feature-list li {
+      display: flex; align-items: center; gap: 12px;
+      color: var(--muted); font-size: 14px; line-height: 1.5;
+    }
+    .feature-list li::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent); flex-shrink: 0;
+    }
+
+    /* Download Button */
+    .dl-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      margin: 24px 28px 28px;
+      padding: 16px;
+      border-radius: 12px;
+      font-family: var(--head); font-size: 18px; font-weight: 700;
+      letter-spacing: 2px; text-decoration: none;
+      transition: all .2s;
+      position: relative; overflow: hidden;
+      cursor: pointer; border: none;
+    }
+    .dl-btn::after {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(255,255,255,0);
+      transition: background .2s;
+    }
+    .dl-btn:hover::after { background: rgba(255,255,255,.08); }
+
+    .dl-btn.driver-btn {
+      background: linear-gradient(135deg, #0077b6, #00b4d8);
+      color: #fff;
+      box-shadow: 0 8px 30px rgba(0,119,182,.35);
+    }
+    .dl-btn.driver-btn:hover { box-shadow: 0 12px 40px rgba(0,180,216,.45); }
+
+    .dl-btn.passenger-btn {
+      background: linear-gradient(135deg, #1b5e20, #4caf50);
+      color: #fff;
+      box-shadow: 0 8px 30px rgba(76,175,80,.3);
+    }
+    .dl-btn.passenger-btn:hover { box-shadow: 0 12px 40px rgba(76,175,80,.4); }
+
+    .dl-btn .btn-icon { font-size: 20px; }
+    .apk-size { font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: center; margin-bottom: 20px; }
+
+    /* ── HOW IT WORKS ── */
+    .how { position: relative; z-index: 1; padding: 0 20px 90px; }
+    .steps {
+      max-width: 860px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 20px;
+    }
+    .step {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px 20px; text-align: center;
+      position: relative; overflow: hidden;
+      transition: border-color .3s;
+    }
+    .step:hover { border-color: var(--accent); }
+    .step-num {
+      font-family: var(--mono); font-size: 11px; color: var(--accent);
+      letter-spacing: 2px; margin-bottom: 14px;
+    }
+    .step-icon { font-size: 36px; margin-bottom: 14px; }
+    .step-title { font-family: var(--head); font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .step-desc { color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .step-arrow {
+      position: absolute; top: 50%; right: -14px;
+      color: var(--border); font-size: 20px;
+      transform: translateY(-50%);
+      display: none;
+    }
+
+    /* ── INSTALL GUIDE ── */
+    .install { position: relative; z-index: 1; padding: 0 20px 90px; }
+    .install-inner {
+      max-width: 700px; margin: 0 auto;
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      overflow: hidden;
+    }
+    .install-tabs {
+      display: flex; border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      flex: 1; padding: 16px; font-family: var(--head); font-size: 16px;
+      font-weight: 700; letter-spacing: 1px; background: none; border: none;
+      color: var(--muted); cursor: pointer; transition: all .2s;
+      border-bottom: 3px solid transparent;
+    }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-content { display: none; padding: 28px; }
+    .tab-content.active { display: block; }
+    .install-step {
+      display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-start;
+    }
+    .install-step:last-child { margin-bottom: 0; }
+    .step-bubble {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: 13px; font-weight: bold;
+    }
+    .step-bubble.blue { background: rgba(0,180,216,.15); color: var(--accent); border: 1px solid rgba(0,180,216,.3); }
+    .step-bubble.green { background: rgba(76,175,80,.12); color: #81c784; border: 1px solid rgba(76,175,80,.3); }
+    .install-text { padding-top: 4px; }
+    .install-text strong { font-family: var(--head); color: var(--text); font-size: 15px; letter-spacing: .5px; }
+    .install-text p { color: var(--muted); font-size: 13px; margin-top: 4px; line-height: 1.6; }
+
+    /* ── ROUTES TICKER ── */
+    .ticker-wrap {
+      position: relative; z-index: 1;
+      overflow: hidden; padding: 16px 0; margin-bottom: 80px;
+      background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .ticker {
+      display: flex; gap: 0;
+      animation: ticker 18s linear infinite;
+      white-space: nowrap;
+    }
+    .ticker-item {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 0 30px;
+      font-family: var(--mono); font-size: 13px; color: var(--muted);
+      border-right: 1px solid var(--border);
+    }
+    .ticker-item span { color: var(--accent); }
+    @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative; z-index: 1;
+      text-align: center; padding: 30px 20px 40px;
+      border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 13px;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeUp   { from { opacity: 0; transform: translateY(20px);  } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      nav { padding: 12px 16px; }
+      .nav-links { display: none; }
+      .hero { padding: 60px 16px 40px; }
+      .downloads { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">🚌 <span>BUS</span>TRACKER</a>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <span class="nav-badge">BIHAR LIVE</span>
+    <div class="nav-links">
+      <a href="#download">Download</a>
+      <a href="#how">Kaise Kaam Kare</a>
+      <a href="#install">Install Guide</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-chip">
+    <div class="live-dot"></div>
+    REAL-TIME BUS TRACKING · BIHAR
+  </div>
+  <h1>जानो तुम्हारी<br/><em>BUS कहाँ है</em></h1>
+  <p class="hero-sub">
+    WhereIsMyTrain की तरह — अब बस का भी live location देखो map पर।
+    Driver का phone ही GPS बनेगा!
+  </p>
+
+  <!-- Animated road -->
+  <div class="road">
+    <div class="road-line"></div>
+    <div class="road-dash"></div>
+    <div class="road-bus">🚌</div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat"><div class="stat-num" id="cnt-routes">5+</div><div class="stat-label">ROUTES</div></div>
+  <div class="stat"><div class="stat-num" id="cnt-live" style="color:var(--green)">LIVE</div><div class="stat-label">TRACKING</div></div>
+  <div class="stat"><div class="stat-num">FREE</div><div class="stat-label">DOWNLOAD</div></div>
+  <div class="stat"><div class="stat-num">2G+</div><div class="stat-label">INTERNET</div></div>
+</div>
+
+<!-- ROUTES TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker">
+    <!-- duplicate for seamless loop -->
+    <div class="ticker-item">🚌 <span>Saharsa</span> → <span>Purnia</span></div>
+    <div class="ticker-item">🚌 <span>Purnia</span> → <span>Saharsa</span></div>
+    <div class="ticker-item">🚌 <span>Saharsa</span> → <span>Supaul</span></div>
+    <div class="ticker-item">🚌 <span>Purnia</span> → <span>Araria</span></div>
+    <div class="ticker-item">🚌 <span>Madhepura</span> → <span>Patna</span></div>
+    <div class="ticker-item">🚌 <span>Supaul</span> → <span>Saharsa</span></div>
+    <div class="ticker-item">🚌 <span>Saharsa</span> → <span>Purnia</span></div>
+    <div class="ticker-item">🚌 <span>Purnia</span> → <span>Saharsa</span></div>
+    <div class="ticker-item">🚌 <span>Saharsa</span> → <span>Supaul</span></div>
+    <div class="ticker-item">🚌 <span>Purnia</span> → <span>Araria</span></div>
+    <div class="ticker-item">🚌 <span>Madhepura</span> → <span>Patna</span></div>
+    <div class="ticker-item">🚌 <span>Supaul</span> → <span>Saharsa</span></div>
+  </div>
+</div>
+
+<!-- DOWNLOAD -->
+<section id="download">
+  <div class="section-title">
+    <h2>APP DOWNLOAD KARO</h2>
+    <p>Driver aur Passenger — dono ke liye alag-alag app</p>
+    <div class="line"></div>
+  </div>
+
+  <div class="downloads">
+
+    <!-- DRIVER APP -->
+    <div class="dl-card">
+      <div class="card-header">
+        <div class="card-icon driver">🧑‍✈️</div>
+        <div>
+          <div class="card-title">Driver App</div>
+          <div class="card-subtitle">Bus chalane walon ke liye</div>
+          <span class="card-tag tag-driver">DRIVER ONLY</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <ul class="feature-list">
+          <li>Ek baar install — hamesha kaam kare</li>
+          <li>Route select karo aur "Start Trip" dabao</li>
+          <li>GPS automatically location bhejta rahe</li>
+          <li>2G internet mein bhi chalega</li>
+          <li>Background mein bhi run karta hai</li>
+          <li>Trip khatam hone pe "Stop" dabao</li>
+        </ul>
+      </div>
+      <div class="apk-size">📦 APK Size: ~18 MB &nbsp;|&nbsp; Android 7.0+</div>
+      <a class="dl-btn driver-btn" href="driver-app.apk" download>
+        <span class="btn-icon">⬇</span> DRIVER APK DOWNLOAD
+      </a>
+    </div>
+
+    <!-- PASSENGER APP -->
+    <div class="dl-card">
+      <div class="card-header">
+        <div class="card-icon passenger">👥</div>
+        <div>
+          <div class="card-title">Passenger App</div>
+          <div class="card-subtitle">Yatriyon ke liye — Bus kahan hai dekho</div>
+          <span class="card-tag tag-passenger">PASSENGER</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <ul class="feature-list">
+          <li>Live map pe bus ka location dekho</li>
+          <li>Speed, ETA aur nearest stop dikhega</li>
+          <li>Saharsa–Purnia sab routes available</li>
+          <li>Dark map — WhereIsMyTrain jaisi feel</li>
+          <li>Stop-by-stop timeline dikhegi</li>
+          <li>Real-time auto-refresh — koi reload nahi</li>
+        </ul>
+      </div>
+      <div class="apk-size">📦 APK Size: ~22 MB &nbsp;|&nbsp; Android 7.0+</div>
+      <a class="dl-btn passenger-btn" href="passenger-app.apk" download>
+        <span class="btn-icon">⬇</span> PASSENGER APK DOWNLOAD
+      </a>
+    </div>
+
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" class="how">
+  <div class="section-title">
+    <h2>KAISE KAAM KARTA HAI</h2>
+    <p>Seedha simple — sirf 4 steps</p>
+    <div class="line"></div>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">STEP 01</div>
+      <div class="step-icon">📲</div>
+      <div class="step-title">Driver Install Kare</div>
+      <div class="step-desc">Driver apne phone mein Driver APK ek baar install kare. Play Store ki zaroorat nahi.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">STEP 02</div>
+      <div class="step-icon">▶️</div>
+      <div class="step-title">Trip Shuru Karo</div>
+      <div class="step-desc">Route choose karo, "Start Trip" dabao. App background mein GPS bhejta rahega.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">STEP 03</div>
+      <div class="step-icon">☁️</div>
+      <div class="step-title">Firebase Update</div>
+      <div class="step-desc">Har 10 second mein location Firebase server pe automatically jaati hai.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">STEP 04</div>
+      <div class="step-icon">🗺️</div>
+      <div class="step-title">Passenger Dekhe</div>
+      <div class="step-desc">Passenger app kholo, route select karo — live map pe bus dikhegi!</div>
+    </div>
+  </div>
+</section>
+
+<!-- INSTALL GUIDE -->
+<section id="install" class="install">
+  <div class="section-title">
+    <h2>INSTALL KAISE KAREIN</h2>
+    <p>Pehli baar karne ka step-by-step guide</p>
+    <div class="line"></div>
+  </div>
+
+  <div class="install-inner">
+    <div class="install-tabs">
+      <button class="tab-btn active" onclick="switchTab('driver')">🧑‍✈️ Driver App</button>
+      <button class="tab-btn" onclick="switchTab('passenger')">👥 Passenger App</button>
+    </div>
+
+    <!-- Driver Tab -->
+    <div class="tab-content active" id="tab-driver">
+      <div class="install-step">
+        <div class="step-bubble blue">1</div>
+        <div class="install-text">
+          <strong>APK Download Karo</strong>
+          <p>Upar "Driver APK Download" button dabao. File tumhare phone mein save ho jayegi.</p>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-bubble blue">2</div>
+        <div class="install-text">
+          <strong>Unknown Sources Allow Karo</strong>
+          <p>Settings → Security → "Install Unknown Apps" → Chrome ya File Manager → Allow karo.</p>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-bubble blue">3</div>
+        <div class="install-text">
+          <strong>APK Install Karo</strong>
+          <p>Downloads folder mein jao, "driver-app.apk" file pe tap karo → Install dabao.</p>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-bubble blue">4</div>
+        <div class="install-text">
+          <strong>App Kholo & GPS Allow Karo</strong>
+          <p>App pehli baar khulne par Location permission maangega — "Allow all the time" chuno.</p>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-bubble blue">5</div>
+        <div class="install-text">
+          <strong>Route Select Karo aur Start Karo!</strong>
+          <p>Apna route chuno → "Trip Shuru Karo" dabao → Bus live ho gayi! 🎉</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Passenger Tab -->
+    <div class="tab-content" id="tab-passenger">
+      <div class="install-step">
+        <div class="step-bubble green">1</div>
+        <div class="install-text">
+          <strong>APK Download Karo</strong>
+          <p>Upar "Passenger APK Download" button dabao. Ya ise WhatsApp se kisi ko bhi bhejo.</p>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-bubble green">2</div>
+        <div class="install-text">
+          <strong>Unknown Sources Allow Karo</strong>
+          <p>Settings → Security → "Install Unknown Apps" → Allow karo.</p>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-bubble green">3</div>
+        <div class="install-text">
+          <strong>APK Install Karo</strong>
+          <p>Downloads mein "passenger-app.apk" pe tap karo → Install karo.</p>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-bubble green">4</div>
+        <div class="install-text">
+          <strong>Route Dhundo aur Track Karo!</strong>
+          <p>App kholo → apna route select karo → live map pe bus dekho. Itna simple! 🚌</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p style="font-family:var(--head);font-size:20px;color:var(--accent);letter-spacing:2px;margin-bottom:10px;">🚌 BUSTRACKER BIHAR</p>
+  <p>Bihar ke passengers ke liye — Free. Fast. Live.</p>
+  <p style="margin-top:16px;">
+    Problems? Contact: <a href="mailto:support@bustracker.in">support@bustracker.in</a>
+  </p>
+  <p style="margin-top:20px;font-size:11px;letter-spacing:1px;color:#2a4060;">
+    © 2025 BusTracker Bihar · Powered by Firebase · Made with ❤️
+  </p>
+</footer>
+
+<script>
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // Scroll reveal
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.style.opacity = '1';
+        e.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.dl-card, .step, .install-inner').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(30px)';
+    el.style.transition = 'opacity .6s ease, transform .6s ease';
+    observer.observe(el);
+  });
+</script>
+</body>
+</html>
